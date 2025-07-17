@@ -1,41 +1,50 @@
-
 import yfinance as yf
+import pandas as pd
 
-def obtener_datos_y_senal(ticker, periodo):
-    datos = yf.download(ticker, period="7d", interval=periodo)
-    if datos.empty or len(datos) < 2:
-        raise ValueError("No hay suficientes datos para analizar las velas.")
-    senal = detectar_senal(datos)
-    riesgo = evaluar_riesgo(datos)
-    return datos, senal, riesgo
+def obtener_datos(ticker, intervalo):
+    df = yf.download(ticker, period="7d", interval=intervalo)
+    df = df.dropna()
+    return df
 
-def detectar_senal(datos):
-    if len(datos) < 2:
-        raise ValueError("No hay suficientes datos para analizar las velas.")
-    cuerpo_anterior = datos['Close'].iloc[-2] - datos['Open'].iloc[-2]
-    cuerpo_actual = datos['Close'].iloc[-1] - datos['Open'].iloc[-1]
-    if cuerpo_anterior < 0 and cuerpo_actual > 0:
-        return 'Opción de compra'
-    elif cuerpo_anterior > 0 and cuerpo_actual < 0:
-        return 'Riesgo de pérdida / vender'
+def detectar_senal(df):
+    if len(df) < 2:
+        return "No hay suficientes datos"
+
+    cuerpo_anterior = df["Close"].iloc[-2] - df["Open"].iloc[-2]
+    cuerpo_actual = df["Close"].iloc[-1] - df["Open"].iloc[-1]
+    mecha_superior = df["High"].iloc[-1] - max(df["Close"].iloc[-1], df["Open"].iloc[-1])
+    mecha_inferior = min(df["Close"].iloc[-1], df["Open"].iloc[-1]) - df["Low"].iloc[-1]
+
+    if cuerpo_anterior < 0 and cuerpo_actual > 0 and mecha_inferior > mecha_superior:
+        return "Opción de compra"
+    elif cuerpo_anterior > 0 and cuerpo_actual < 0 and mecha_superior > mecha_inferior:
+        return "Riesgo de caída"
     else:
-        return 'Sin señal clara'
+        return "Sin señal clara"
 
-def evaluar_riesgo(datos):
-    rsi = calcular_rsi(datos['Close'])
-    if rsi < 30:
-        return 'Bajo'
-    elif rsi > 70:
-        return 'Alto'
-    else:
-        return 'Moderado'
+def calcular_riesgo(df):
+    rsi_periodo = 14
+    delta = df['Close'].diff()
+    ganancia = delta.where(delta > 0, 0)
+    perdida = -delta.where(delta < 0, 0)
 
-def calcular_rsi(series, period=14):
-    delta = series.diff()
-    ganancia = delta.where(delta > 0, 0.0)
-    perdida = -delta.where(delta < 0, 0.0)
-    media_ganancia = ganancia.rolling(window=period).mean()
-    media_perdida = perdida.rolling(window=period).mean()
+    media_ganancia = ganancia.rolling(window=rsi_periodo).mean()
+    media_perdida = perdida.rolling(window=rsi_periodo).mean()
+
     rs = media_ganancia / media_perdida
     rsi = 100 - (100 / (1 + rs))
-    return rsi.iloc[-1]
+
+    ultimo_rsi = rsi.iloc[-1]
+
+    if ultimo_rsi > 70:
+        return "Alto"
+    elif ultimo_rsi < 30:
+        return "Bajo"
+    else:
+        return "Moderado"
+
+def obtener_senal_y_riesgo(ticker, intervalo):
+    datos = obtener_datos(ticker, intervalo)
+    senal = detectar_senal(datos)
+    riesgo = calcular_riesgo(datos)
+    return datos, senal, riesgo
