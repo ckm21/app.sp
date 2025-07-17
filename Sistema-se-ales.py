@@ -17,7 +17,7 @@ if ticker and intervalo and periodo:
     try:
         data = yf.download(ticker, period=periodo, interval=intervalo)
         data.dropna(inplace=True)
-        data.columns = [col.lower() for col in data.columns]
+        data.columns = [col[0].lower() for col in data.columns]
 
         df = data.copy()
         df = detectar_senales(df)
