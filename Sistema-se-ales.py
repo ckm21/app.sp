@@ -1,5 +1,5 @@
 import streamlit as st
-from funciones import *
+from funciones import calcular_porcentaje_ganancia, clasificar_objetivo, mensaje_según_resultado, obtener_datos
 import datetime
 
 st.set_page_config(page_title="Sistema de Señales", layout="centered")
@@ -55,3 +55,5 @@ if ticker:
     if not datos.empty:
         st.line_chart(datos['Close'])
         st.success("Análisis cargado con éxito.")
+
+print("Funciones cargadas correctamente.")
