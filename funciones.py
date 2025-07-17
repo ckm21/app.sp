@@ -1,29 +1,30 @@
-# funciones.py
+import streamlit as st
 
-def calcular_porcentaje_ganancia(precio_entrada, precio_actual):
-    if precio_entrada == 0:
-        return 0
-    return round(((precio_actual - precio_entrada) / precio_entrada) * 100, 2)
+def mostrar_portafolio(acciones):
+    st.info("Aquí podrás ver tus acciones favoritas, ganancias y estado general.")
+    for ticker, datos in acciones.items():
+        color = "🟢" if datos["ganancia"] > 0 else "🔴"
+        st.write(f"{color} {ticker}: {datos['ganancia']}%")
 
-def clasificar_objetivo(porcentaje):
-    if porcentaje < 7:
-        return ("🟢 Objetivo alcanzable", "verde")
-    elif porcentaje < 13:
-        return ("🟠 Objetivo moderado", "naranja")
+def mostrar_semillero(semillero):
+    st.info("Acciones con pequeñas inversiones activas a largo plazo.")
+    for ticker, datos in semillero.items():
+        st.write(f"🌱 {ticker}: {datos['ganancia']}%")
+
+def mostrar_objetivos(objetivo):
+    st.write("Define tu meta de ganancia (%)")
+    st.slider("Meta", 1, 20, objetivo, key="slider_obj")
+    if objetivo >= 15:
+        st.error("🚨 ¿Te crees el lobo de Wall Street?")
+    elif objetivo >= 10:
+        st.warning("⚠️ Objetivo moderado")
     else:
-        return ("🧨 ¿Te crees el lobo de Wall Street?", "rojo")
+        st.success("✅ Buen objetivo")
+    st.markdown(f"**Tu objetivo semanal:** {objetivo}%")
 
-def mensaje_según_resultado(porcentaje):
-    if porcentaje < 7:
-        return "Buen objetivo."
-    elif porcentaje < 13:
-        return "Objetivo razonable, pero desafiante."
-    else:
-        return "Te deseo mucha suerte… o mucha fe."
-
-def obtener_datos():
-    return {
-        "AAPL": {"entrada": 170.0, "actual": 177.65},
-        "WOLF": {"entrada": 2.10, "actual": 2.06},
-        "MSFT": {"entrada": 502.0, "actual": 514.25}
-    }
+def calcular_ganancia_total(acciones):
+    if not acciones:
+        return 0, 0
+    total = sum(datos["monto"] for datos in acciones.values())
+    ganancia = sum((datos["ganancia"] / 100) * datos["monto"] for datos in acciones.values())
+    return (ganancia / total) * 100, ganancia
