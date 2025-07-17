@@ -1,58 +1,69 @@
 import yfinance as yf
-import matplotlib.pyplot as plt
 import pandas as pd
+import datetime
 
-def obtener_datos(ticker):
-    df = yf.download(ticker, period="7d", interval="1d")
-    return df if not df.empty else None
+def obtener_datos(ticker, periodo='1mo', intervalo='1d'):
+    data = yf.download(ticker, period=periodo, interval=intervalo)
+    data = data.dropna()
+    return data
 
-def analizar_senal_velas(df):
-    if df is None or df.empty:
-        raise ValueError("No hay datos disponibles.")
-    df['cuerpo'] = abs(df['Open'] - df['Close'])
-    df['mecha'] = df['High'] - df['Low']
-    ultima = df.iloc[-1]
-    if ultima['Close'] > ultima['Open']:
-        return "compra"
-    elif ultima['Close'] < ultima['Open']:
-        return "venta"
+def detectar_velas_japonesas(data):
+    señales = []
+    for i in range(2, len(data)):
+        anterior = data.iloc[i-1]
+        actual = data.iloc[i]
+        apertura = actual['Open']
+        cierre = actual['Close']
+        apertura_ant = anterior['Open']
+        cierre_ant = anterior['Close']
+        
+        cuerpo = abs(cierre - apertura)
+        mecha_superior = actual['High'] - max(apertura, cierre)
+        mecha_inferior = min(apertura, cierre) - actual['Low']
+        
+        if cuerpo < 0.1 * (actual['High'] - actual['Low']):
+            señales.append(('Doji', actual.name))
+        elif cierre > apertura and cierre_ant < apertura_ant:
+            señales.append(('Martillo Invertido', actual.name))
+        elif cierre < apertura and cierre_ant > apertura_ant:
+            señales.append(('Estrella Fugaz', actual.name))
+        elif cierre > apertura:
+            señales.append(('Alcista', actual.name))
+        elif cierre < apertura:
+            señales.append(('Bajista', actual.name))
+    return señales
+
+def calcular_rsi(data, window=14):
+    delta = data['Close'].diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+
+    avg_gain = gain.rolling(window=window).mean()
+    avg_loss = loss.rolling(window=window).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def calcular_porcentaje_ganancia(precio_entrada, precio_actual):
+    if precio_entrada == 0:
+        return 0
+    return round(((precio_actual - precio_entrada) / precio_entrada) * 100, 2)
+
+def clasificar_objetivo(valor):
+    if valor < 4:
+        return ("✅ Alcanzable", "green")
+    elif valor < 10:
+        return ("🟠 Moderado", "orange")
     else:
-        return "indecisión"
+        return ("🚨 ¿Te crees el lobo de Wall Street?", "red")
 
-def generar_grafico(df, ticker, señal):
-    fig, ax = plt.subplots()
-    ax.plot(df['Close'], label='Precio cierre')
-    ax.set_title(f"{ticker.upper()} - Señal: {señal}")
-    ax.legend()
-    return fig
-
-def obtener_rendimiento_portafolio():
-    # Simulación de acciones en portafolio
-    portafolio = {
-        "AAPL": +4.5,
-        "WOLF": -2.1,
-    }
-    total = sum(portafolio.values()) / len(portafolio)
-    total_dolares = round(total * 200 / 100, 2)
-    salida = []
-    for k, v in portafolio.items():
-        emoji = "🟢" if v > 0 else "🔴"
-        salida.append(f"{emoji} {k}: {v}%")
-    salida.append(f"\n📌 **Ganancia diaria:** {total:.1f}% (${total_dolares})")
-    return "\n".join(salida)
-
-def registrar_inversion(ticker, monto, precio_entrada):
-    return f"Registrada inversión de ${monto} en {ticker} a ${precio_entrada}"
-
-def eliminar_favorita(ticker):
-    return f"Eliminada {ticker} de favoritos."
-
-def obtener_mensaje_objetivo(pct):
-    if pct < 5:
-        return "🟢 Buen objetivo: **alcanzable**"
-    elif pct < 10:
-        return "🟠 Objetivo moderado"
-    elif pct < 15:
-        return "🔴 ¿Te crees el lobo de Wall Street?"
+def mensaje_según_resultado(porcentaje, objetivo):
+    if porcentaje >= objetivo * 1.5:
+        return "🔥 Jordan Belfort, ¿eres tú?"
+    elif porcentaje >= objetivo:
+        return "🎯 ¡Bien hecho, lo lograste!"
+    elif porcentaje > 0:
+        return "📈 De poco a poquito se va llenando el huequito..."
     else:
-        return "🚨 Reza a Dios… y si no tienes, te deseo mucha suerte 😅"
+        return "😓 No te desanimes, no siempre se gana."
