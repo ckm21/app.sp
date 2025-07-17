@@ -1,3 +1,5 @@
+# funciones.py
+
 # Funciones auxiliares
 def saludar():
-    print("Hola")
+    print("Hola desde funciones")
